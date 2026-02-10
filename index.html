@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Crypto Portfolio</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" defer></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js" defer></script>
+    
+    <style>
+        /* --- 1. MODERN VARIABLES --- */
+        :root {
+            /* Light Theme */
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --danger: #ef4444;
+            --success: #10b981;
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        }
+
+        body.dark-mode {
+            /* Dark Theme (Deep Slate) */
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- 2. BASE STYLES --- */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 40px 20px;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Glassmorphism Card Style */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            border-radius: 20px;
+            padding: 25px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        /* --- 3. HEADER --- */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 40px; flex-wrap: wrap; gap: 20px;
+        }
+        h1 { margin: 0; font-weight: 700; letter-spacing: -1px; background: -webkit-linear-gradient(45deg, var(--primary), #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2rem; }
+        .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; display: block; }
+
+        /* Buttons */
+        .btn-group { display: flex; gap: 12px; }
+        button {
+            border: none; padding: 10px 20px; border-radius: 12px;
+            font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        button:active { transform: scale(0.95); }
+
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-secondary { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-add { width: 100%; justify-content: center; margin-top: 20px; padding: 14px; font-size: 1rem; }
+
+        /* --- 4. DASHBOARD GRID --- */
+        .dashboard-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;
+        }
+        .ticker-card { text-align: center; position: relative; overflow: hidden; }
+        .ticker-card::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            opacity: 0.1; transform: rotate(30deg); pointer-events: none;
+        }
+        .ticker-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+        .ticker-price { font-size: 2rem; font-weight: 700; color: var(--text-main); }
+        .ticker-change { font-size: 0.9rem; font-weight: 600; margin-top: 5px; display: inline-block; padding: 4px 10px; border-radius: 20px; background: rgba(0,0,0,0.05); }
+
+        /* --- 5. INPUTS & FORM --- */
+        .main-layout { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 25px; margin-bottom: 30px; }
+        
+        .input-group { margin-bottom: 15px; position: relative; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+        input {
+            width: 100%; padding: 12px 15px; border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.5);
+            color: var(--text-main); font-family: inherit; font-size: 1rem;
+            transition: all 0.2s; outline: none;
+        }
+        body.dark-mode input { background: rgba(0,0,0,0.2); }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); background: transparent; }
+
+        /* Search Dropdown */
+        .search-results {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: var(--glass-bg); backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 10px;
+            margin-top: 5px; max-height: 250px; overflow-y: auto; z-index: 50;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: none;
+        }
+        .search-item { padding: 12px 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid var(--glass-border); transition: background 0.2s; }
+        .search-item:last-child { border-bottom: none; }
+        .search-item:hover { background: rgba(100,100,100,0.1); }
+        .search-item img { border-radius: 50%; width: 24px; height: 24px; }
+
+        /* --- 6. TABLE --- */
+        .table-container { overflow-x: auto; border-radius: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 18px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 18px; border-bottom: 1px solid var(--glass-border); color: var(--text-main); font-weight: 500; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.05); }
+        
+        .btn-del-icon { 
+            background: rgba(239, 68, 68, 0.1); color: var(--danger); 
+            padding: 8px; border-radius: 8px; transition: 0.2s; 
+        }
+        .btn-del-icon:hover { background: var(--danger); color: white; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .main-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>CryptoFolio Pro</h1>
+            <span class="subtitle">Real-time Asset Tracking & Analytics</span>
+        </div>
+        <div class="btn-group">
+            <button class="btn-secondary" onclick="exportPDF()">📄 PDF</button>
+            <button class="btn-secondary" onclick="exportExcel()">📊 Excel</button>
+            <button class="btn-secondary" onclick="toggleTheme()">🌓 Theme</button>
+            <button class="btn-del-icon" onclick="resetData()" style="width:auto; padding: 10px 15px;">Clear</button>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="glass-panel ticker-card">
+            <div class="ticker-label">Bitcoin</div>
+            <div id="p-bitcoin" class="ticker-price">...</div>
+            <div id="c-bitcoin" class="ticker-change">--</div>
+        </div>
+        <div class="glass-panel ticker-card">
+            <div class="ticker-label">Ethereum</div>
+            <div id="p-ethereum" class="ticker-price">...</div>
+            <div id="c-ethereum" class="ticker-change">--</div>
+        </div>
+        <div class="glass-panel ticker-card">
+            <div class="ticker-label">S&P 500</div>
+            <div id="p-spx" class="ticker-price">...</div>
+            <div id="c-spx" class="ticker-change">--</div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="glass-panel">
+            <h2 style="margin-top:0; font-size:1.2rem; margin-bottom:20px;">Add New Asset</h2>
+            
+            <div class="input-group">
+                <label>Search Asset</label>
+                <input type="text" id="searchBox" placeholder="e.g. Solana, Apple, Tesla..." oninput="debounceSearch(this.value)" autocomplete="off">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+
+            <div id="selectedBadge" style="display:none; background:rgba(59,130,246,0.1); border:1px solid var(--primary); color:var(--primary); padding:10px; border-radius:10px; margin-bottom:15px; font-weight:600; text-align:center;"></div>
+            
+            <div class="input-group">
+                <label>Date of Purchase</label>
+                <input type="date" id="dateIn">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div class="input-group">
+                    <label>Buy Price ($)</label>
+                    <input type="number" id="priceIn" step="any" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label>Token Amount</label>
+                    <input type="number" id="amtIn" step="any" placeholder="0.00">
+                </div>
+            </div>
+
+            <input type="hidden" id="selId"><input type="hidden" id="selSymbol">
+            <button class="btn-primary btn-add" onclick="addTx()">+ Add Transaction</button>
+        </div>
+
+        <div class="glass-panel" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <label style="margin-bottom:5px;">Total Portfolio Value</label>
+                <div id="totalVal" style="font-size:2.5rem; font-weight:800; background: -webkit-linear-gradient(45deg, var(--text-main), var(--text-muted)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">$0.00</div>
+            </div>
+            <div style="width:100%; height:250px; position:relative;">
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel table-container">
+        <h2 style="margin:0 0 20px 0; font-size:1.2rem;">Transaction History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Date</th>
+                    <th>Buy Price</th>
+                    <th>Token Amount</th>
+                    <th>Current Value</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    /* --- LOGIC PRESERVED FROM OPTIMIZED VERSION --- */
+    
+    let transactions = JSON.parse(localStorage.getItem('modern_portfolio') || '[]');
+    let marketData = {}; 
+    let chartInstance = null;
+    let searchTimeout;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('dateIn').valueAsDate = new Date();
+        renderTable(); 
+        refreshData(); 
+    });
+
+    async function refreshData() {
+        const pfIds = [...new Set(transactions.map(t => t.id))];
+        const allIds = [...new Set(['bitcoin', 'ethereum', ...pfIds])];
+        
+        await Promise.allSettled([fetchCrypto(allIds), fetchSP500()]);
+        
+        updateDashboardUI();
+        renderTable(); 
+        updateChart();
+        setTimeout(refreshData, 60000); 
+    }
+
+    async function fetchCrypto(ids) {
+        if(ids.length === 0) return;
+        try {
+            const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd&include_24hr_change=true`);
+            const data = await res.json();
+            marketData = { ...marketData, ...data };
+        } catch (e) { console.warn("Crypto busy"); }
+    }
+
+    async function fetchSP500() {
+        try {
+            const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=1d')}`);
+            const json = await res.json();
+            const meta = json.chart.result[0].meta;
+            const price = meta.regularMarketPrice;
+            const prev = meta.chartPreviousClose;
+            marketData['spx'] = { usd: price, usd_24h_change: ((price - prev) / prev) * 100 };
+        } catch (e) { console.warn("Yahoo busy"); }
+    }
+
+    function updateDashboardUI() {
+        updateCard('bitcoin', 'p-bitcoin', 'c-bitcoin');
+        updateCard('ethereum', 'p-ethereum', 'c-ethereum');
+        updateCard('spx', 'p-spx', 'c-spx');
+    }
+
+    function updateCard(id, pId, cId) {
+        const d = marketData[id];
+        if(!d) return;
+        document.getElementById(pId).innerText = `$${d.usd.toLocaleString(undefined, {maximumFractionDigits:2})}`;
+        const el = document.getElementById(cId);
+        const change = d.usd_24h_change;
+        el.innerText = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+        el.style.color = change >= 0 ? 'var(--success)' : 'var(--danger)';
+        el.style.background = change >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        let html = ''; 
+        const sorted = transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
+        sorted.forEach(t => {
+            const price = marketData[t.id] ? marketData[t.id].usd : 0;
+            const val = price * t.amount;
+            html += `
+                <tr>
+                    <td style="font-weight:600; text-transform:uppercase;">${t.symbol}</td>
+                    <td style="color:var(--text-muted)">${t.date}</td>
+                    <td>$${t.price}</td>
+                    <td>${t.amount}</td>
+                    <td style="font-weight:700;">$${val > 0 ? val.toLocaleString(undefined,{minimumFractionDigits:2}) : 'Loading...'}</td>
+                    <td><button class="btn-del-icon" onclick="delTx(${t.uid})">🗑</button></td>
+                </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    function updateChart() {
+        if(typeof Chart === 'undefined') return; 
+        const ctx = document.getElementById('chart').getContext('2d');
+        let totals = {}, sum = 0;
+        transactions.forEach(t => {
+            if(marketData[t.id]) {
+                const v = t.amount * marketData[t.id].usd;
+                totals[t.id] = (totals[t.id] || 0) + v;
+                sum += v;
+            }
+        });
+
+        document.getElementById('totalVal').innerText = `$${sum.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+        const labels = Object.keys(totals).map(k => k.toUpperCase());
+        const data = Object.values(totals);
+
+        if(chartInstance) {
+            chartInstance.data.labels = labels;
+            chartInstance.data.datasets[0].data = data;
+            chartInstance.update();
+        } else {
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels, 
+                    datasets: [{ 
+                        data, 
+                        backgroundColor: ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '70%',
+                    plugins: { legend: { display: false } }
+                } 
+            });
+        }
+    }
+
+    function debounceSearch(q) {
+        clearTimeout(searchTimeout);
+        if(q.length < 2) { document.getElementById('searchResults').style.display='none'; return; }
+        searchTimeout = setTimeout(async () => {
+            const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${q}`);
+            const data = await res.json();
+            const box = document.getElementById('searchResults');
+            box.innerHTML = data.coins.slice(0,5).map(c => 
+                `<div class="search-item" onclick="pick('${c.id}','${c.symbol}','${c.name}')">
+                    <img src="${c.thumb}"> <span><b>${c.name}</b> <span style="font-size:0.8rem; opacity:0.7">(${c.symbol})</span></span>
+                </div>`
+            ).join('');
+            box.style.display = 'block';
+        }, 300);
+    }
+
+    function pick(id, sym, name) {
+        document.getElementById('selId').value = id;
+        document.getElementById('selSymbol').value = sym;
+        const b = document.getElementById('selectedBadge');
+        b.innerText = `Selected: ${name}`; b.style.display = 'block';
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('searchBox').value = '';
+    }
+
+    function addTx() {
+        const id = document.getElementById('selId').value;
+        if(!id) return alert("Please search and select an asset first.");
+        
+        transactions.push({
+            uid: Date.now(),
+            id: id,
+            symbol: document.getElementById('selSymbol').value,
+            date: document.getElementById('dateIn').value,
+            price: parseFloat(document.getElementById('priceIn').value),
+            amount: parseFloat(document.getElementById('amtIn').value)
+        });
+        localStorage.setItem('modern_portfolio', JSON.stringify(transactions));
+        refreshData(); 
+        document.getElementById('selectedBadge').style.display='none';
+        document.getElementById('selId').value = '';
+        document.getElementById('priceIn').value = '';
+        document.getElementById('amtIn').value = '';
+    }
+
+    function delTx(uid) {
+        transactions = transactions.filter(t => t.uid !== uid);
+        localStorage.setItem('modern_portfolio', JSON.stringify(transactions));
+        renderTable(); updateChart();
+    }
+
+    function toggleTheme() { document.body.classList.toggle('dark-mode'); }
+
+    /* EXPORT LOGIC (UNCHANGED) */
+    function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const cvs = document.getElementById('chart');
+        const img = cvs.toDataURL("image/png", 1.0);
+        const ratio = cvs.height / cvs.width;
+        
+        doc.setFontSize(18); doc.text("Portfolio Report", 14, 20);
+        doc.setFontSize(10); doc.text(new Date().toLocaleString(), 14, 28);
+        
+        doc.addImage(img, 'PNG', 14, 35, 70, 70 * ratio);
+        
+        const rows = transactions.map(t => [t.symbol.toUpperCase(), t.date, `$${t.price}`, t.amount, `$${(marketData[t.id]?.usd*t.amount || 0).toFixed(2)}`]);
+        doc.autoTable({ head: [['Asset','Date','Price','Amt','Value']], body: rows, startY: 35 + (70 * ratio) + 10 });
+        doc.save('portfolio.pdf');
+    }
+
+    function exportExcel() {
+        const data = transactions.map(t => ({ Asset: t.symbol, Date: t.date, Price: t.price, Amount: t.amount, Value: (marketData[t.id]?.usd*t.amount || 0).toFixed(2) }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Portfolio");
+        XLSX.writeFile(wb, "portfolio.xlsx");
+    }
+    
+    function resetData() {
+        if(confirm("Clear all data?")) { localStorage.removeItem('modern_portfolio'); transactions=[]; renderTable(); updateChart(); }
+    }
+</script>
+</body>
+</html>
